@@ -1,3 +1,5 @@
+package programmers;
+
 public class Fatigue {
 	static int cnt = 0;
 	static boolean[] visited;

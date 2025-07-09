@@ -1,3 +1,5 @@
+package programmers;
+
 public class NumberMate {
 	public String solution(String X, String Y) {
 		StringBuilder answer = new StringBuilder();

@@ -1,3 +1,5 @@
+package programmers;
+
 public class SplitString {
 	public int solution(String s) {
 		int answer = 1;
