@@ -5,7 +5,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 import java.util.PriorityQueue;
 import java.util.StringTokenizer;
 
@@ -29,7 +28,7 @@ public class LeastCost_1916 {
 	static int n, m, start, goal;
 	static PriorityQueue<Edge> pq = new PriorityQueue<>();
 	static int[] distance;
-	static List<Edge>[] graph;
+	static ArrayList<Edge>[] graph;
 	
 	public static void main(String[] args) throws IOException {
 		BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
@@ -39,7 +38,7 @@ public class LeastCost_1916 {
 		Arrays.fill(distance, Integer.MAX_VALUE);
 		graph = new ArrayList[n+1];
 		for (int i = 1; i <= n; i++) {
-			graph[i] = new ArrayList<Edge>();
+			graph[i] = new ArrayList<>();
 		}
 		st = new StringTokenizer(br.readLine());
 		m = Integer.parseInt(st.nextToken());
