@@ -98,7 +98,7 @@ public class AtomExtinction_5648 {
                 }
                 total += released;
 
-                // 3) 충돌좌표에 있던 원자 제외 (lookup 시 새 Pos 만들지 말고 같은 객체 사용!)
+                // 3) 충돌좌표에 있던 원자 제외
                 if (released > 0) {
                     atoms.clear();
                     for (int i = 0, sz = next.size(); i < sz; i++) {
@@ -108,7 +108,6 @@ public class AtomExtinction_5648 {
                     }
                 } else {
                     // 충돌 없으면 다음 틱 진행
-                    // swap(next, atoms)
                     ArrayList<Atom> tmp = atoms;
                     atoms = next;
                     next = tmp;
