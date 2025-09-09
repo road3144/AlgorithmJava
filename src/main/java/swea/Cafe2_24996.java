@@ -13,7 +13,7 @@ class Solution
     private static final int CMD_GET_STATUS		= 500;
     private static final int CMD_HURRY			= 600;
 
-    private static UserSolution usersolution = new UserSolution();
+    private static UserSolution2 usersolution = new UserSolution2();
 
     private static final int MAX_NUM_BEVERAGES = 10;
 
@@ -128,7 +128,7 @@ class Solution
     }
 }
 /** 채점용 Solution 클래스는 수정하지 말 것 */
-class UserSolution
+class UserSolution2
 {
     // 주문 상태
     private static final int ACTIVE = 0;
