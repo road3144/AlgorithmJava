@@ -9,7 +9,7 @@ public class CafeBakery_25430 {
     private final static int CMD_ADD = 200;
     private final static int CMD_CALC = 300;
 
-    private final static UserSolution usersolution = new UserSolution();
+    private final static CafeBakeryUserSolution USERSOLUTION = new CafeBakeryUserSolution();
 
     private static boolean run(Scanner sc) {
         int q = sc.nextInt();
@@ -41,13 +41,13 @@ public class CafeBakery_25430 {
                         eBuildingArr[j] = sc.nextInt();
                         mDistArr[j] = sc.nextInt();
                     }
-                    usersolution.init(n, k, sBuildingArr, eBuildingArr, mDistArr);
+                    USERSOLUTION.init(n, k, sBuildingArr, eBuildingArr, mDistArr);
                     break;
                 case CMD_ADD:
                     sBuilding = sc.nextInt();
                     eBuilding = sc.nextInt();
                     mDist = sc.nextInt();
-                    usersolution.add(sBuilding, eBuilding, mDist);
+                    USERSOLUTION.add(sBuilding, eBuilding, mDist);
                     break;
                 case CMD_CALC:
                     m = sc.nextInt();
@@ -63,7 +63,7 @@ public class CafeBakery_25430 {
                     for (int j = 0; j < p; ++j) {
                         mBakery[j] = sc.nextInt();
                     }
-                    ret = usersolution.calculate(m, mCoffee, p, mBakery, r);
+                    ret = USERSOLUTION.calculate(m, mCoffee, p, mBakery, r);
                     ans = sc.nextInt();
                     if (ans != ret)
                         okay =false;
@@ -96,7 +96,7 @@ public class CafeBakery_25430 {
 }
 
 
-class UserSolution {
+class CafeBakeryUserSolution {
 
     static ArrayList<Node>[] map;
     static int n, r;
@@ -225,6 +225,238 @@ class UserSolution {
             }
         }
     }
+}
 
+// 25개 테케 2974ms 그냥 커피 베이커리 한번에 넣고 돌리기
+class CafeBakeryUserSolution2 {
 
+    static ArrayList<Node>[] map;
+    static int n, r;
+    static int INF = Integer.MAX_VALUE;
+    static int[][] distance;
+
+    class Node implements Comparable<Node> {
+        int node;
+        int cost;
+        int type;
+        Node(int node, int cost, int type){
+            this.node = node;
+            this.cost = cost;
+            this.type = type;
+        }
+        @Override
+        public int compareTo(Node o) {
+            return this.cost - o.cost;
+        }
+    }
+
+    public void init(int N, int K, int sBuilding[], int eBuilding[], int mDistance[]) {
+        n = N;
+        map = new ArrayList[N];
+        for (int i = 0; i < K; i++) {
+            int s = sBuilding[i];
+            int e = eBuilding[i];
+            int c = mDistance[i];
+            if (map[s] == null) {
+                map[s] = new ArrayList<>();
+            }
+            map[s].add(new Node(e, c, -1));
+            if (map[e] == null) {
+                map[e] = new ArrayList<>();
+            }
+            map[e].add(new Node(s, c, -1));
+
+        }
+    }
+
+    public void add(int sBuilding, int eBuilding, int mDistance) {
+        if (map[sBuilding] == null) {
+            map[sBuilding] = new ArrayList<>();
+        }
+        map[sBuilding].add(new Node(eBuilding, mDistance, -1));
+        if (map[eBuilding] == null) {
+            map[eBuilding] = new ArrayList<>();
+        }
+        map[eBuilding].add(new Node(sBuilding, mDistance, -1));
+    }
+
+    public int calculate(int M, int mCoffee[], int P, int mBakery[], int R) {
+        r = R;
+        boolean[] isCafe = new boolean[n];
+        boolean[] isBakery = new boolean[n];
+
+        distance = new int[2][n];
+
+        Arrays.fill(distance[0], INF);
+        Arrays.fill(distance[1], INF);
+        for (int i = 0; i < M; ++i) {
+            isCafe[mCoffee[i]] = true;
+        }
+        for (int i = 0; i < P; ++i) {
+            isBakery[mBakery[i]] = true;
+        }
+
+        dijkstra(M, mCoffee, P, mBakery);
+        int ans = INF;
+
+        for (int i = 0; i < n; i++) {
+            if (isCafe[i] || isBakery[i]) continue;
+            if (distance[0][i] <= r && distance[1][i] <= r) {
+                ans = Math.min(ans, distance[0][i] + distance[1][i]);
+            }
+        }
+
+        if (ans == INF) return -1;
+        return ans;
+    }
+
+    void dijkstra(int m, int[] coffee, int p, int[] bakery){
+        PriorityQueue<Node> pq = new PriorityQueue<>();
+
+        for (int i = 0; i < p; i++) {
+            distance[0][bakery[i]] = 0;
+            pq.add(new Node(bakery[i], 0, 0));
+        }
+        for (int i = 0; i < m; i++) {
+            distance[1][coffee[i]] = 0;
+            pq.add(new Node(coffee[i], 0, 1));
+        }
+
+        while (!pq.isEmpty()){
+            Node now = pq.poll();
+            int type = now.type;
+            int cost = now.cost;
+            if (cost > distance[type][now.node]) continue;
+            if (cost > r) continue;
+
+            for (Node n : map[now.node]) {
+                int dist = cost +  n.cost;
+                if (dist < distance[type][n.node] && dist <= r) {
+                    distance[type][n.node] = dist;
+                    pq.add(new Node(n.node, dist, type));
+                }
+            }
+        }
+    }
+}
+
+// 그냥 커피 베이커리 한번에 넣고 돌리기 + 최솟값 매번 갱신 (pruning 최적화)
+class CafeBakeryUserSolution3 {
+
+    static ArrayList<Node>[] map;
+    static int n, r;
+    static int INF = Integer.MAX_VALUE;
+    static int[][] distance;
+    static int ans;
+    static boolean[] isCafe;
+    static boolean[] isBakery;
+
+    class Node implements Comparable<Node> {
+        int node;
+        int cost;
+        int type;
+        Node(int node, int cost, int type){
+            this.node = node;
+            this.cost = cost;
+            this.type = type;
+        }
+        @Override
+        public int compareTo(Node o) {
+            return this.cost - o.cost;
+        }
+    }
+
+    public void init(int N, int K, int sBuilding[], int eBuilding[], int mDistance[]) {
+        n = N;
+        map = new ArrayList[N];
+        for (int i = 0; i < K; i++) {
+            int s = sBuilding[i];
+            int e = eBuilding[i];
+            int c = mDistance[i];
+            if (map[s] == null) {
+                map[s] = new ArrayList<>();
+            }
+            map[s].add(new Node(e, c, -1));
+            if (map[e] == null) {
+                map[e] = new ArrayList<>();
+            }
+            map[e].add(new Node(s, c, -1));
+
+        }
+    }
+
+    public void add(int sBuilding, int eBuilding, int mDistance) {
+        if (map[sBuilding] == null) {
+            map[sBuilding] = new ArrayList<>();
+        }
+        map[sBuilding].add(new Node(eBuilding, mDistance, -1));
+        if (map[eBuilding] == null) {
+            map[eBuilding] = new ArrayList<>();
+        }
+        map[eBuilding].add(new Node(sBuilding, mDistance, -1));
+    }
+
+    public int calculate(int M, int mCoffee[], int P, int mBakery[], int R) {
+        r = R;
+        ans = INF;
+        isCafe = new boolean[n];
+        isBakery = new boolean[n];
+
+        distance = new int[2][n];
+
+        Arrays.fill(distance[0], INF);
+        Arrays.fill(distance[1], INF);
+        for (int i = 0; i < M; ++i) {
+            isCafe[mCoffee[i]] = true;
+        }
+        for (int i = 0; i < P; ++i) {
+            isBakery[mBakery[i]] = true;
+        }
+
+        dijkstra(M, mCoffee, P, mBakery);
+
+        if (ans == INF) return -1;
+        return ans;
+    }
+
+    void dijkstra(int m, int[] coffee, int p, int[] bakery){
+        PriorityQueue<Node> pq = new PriorityQueue<>();
+
+        for (int i = 0; i < p; i++) {
+            distance[0][bakery[i]] = 0;
+            pq.add(new Node(bakery[i], 0, 0));
+        }
+        for (int i = 0; i < m; i++) {
+            distance[1][coffee[i]] = 0;
+            pq.add(new Node(coffee[i], 0, 1));
+        }
+
+        while (!pq.isEmpty()){
+            Node now = pq.poll();
+            int type = now.type;
+            int otherType = (type + 1) % 2;
+            int cost = now.cost;
+            if (cost > distance[type][now.node]) continue;
+            if (cost > r) continue;
+            if (cost >= ans) continue;
+
+            for (Node n : map[now.node]) {
+                int dist = cost +  n.cost;
+
+                if (dist >= ans) continue;
+                if (dist > r) continue;
+
+                if (dist < distance[type][n.node]) {
+                    distance[type][n.node] = dist;
+                    pq.add(new Node(n.node, dist, type));
+                    if (distance[otherType][n.node] != INF && !isStore(n.node)){
+                        ans = Math.min(ans, dist + distance[otherType][n.node]);
+                    }
+                }
+            }
+        }
+    }
+    boolean isStore(int b){
+        return isBakery[b] || isCafe[b];
+    }
 }
