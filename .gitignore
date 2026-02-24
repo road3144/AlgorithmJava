@@ -41,4 +41,4 @@ bin/
 ### Mac OS ###
 .DS_Store
 
-BType/TwoBigDecimalEditor/sample_input.txt
+**/sample_input.txt
