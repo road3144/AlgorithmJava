@@ -1,4 +1,4 @@
-package swea;
+package swea.btype;
 
 import java.util.*;
 
