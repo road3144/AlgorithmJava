@@ -442,7 +442,6 @@ class CafeBakeryUserSolution3 {
 
             for (Node n : map[now.node]) {
                 int dist = cost +  n.cost;
-
                 if (dist >= ans) continue;
                 if (dist > r) continue;
 
