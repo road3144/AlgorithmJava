@@ -106,7 +106,7 @@ public class FileDownload2_25003 {
 
     public static void main(String[] args) throws Exception {
 
-        //System.setIn(new java.io.FileInputStream("res/sample_input.txt"));
+        System.setIn(new java.io.FileInputStream("./BType/FileDownload2/sample_input.txt"));
 
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         StringTokenizer line = new StringTokenizer(br.readLine(), " ");
@@ -126,164 +126,325 @@ public class FileDownload2_25003 {
 
 class FileDownload2_UserSolution {
 
-    static class File{
+    static class Edge {
         int id;
-        int size;
+        int to;
+        int dist;
 
-        File(int id, int size){
+        Edge(int id, int to, int dist) {
             this.id = id;
-            this.size = size;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (o == null || getClass() != o.getClass()) return false;
-            File file = (File) o;
-            return id == file.id;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hashCode(id);
+            this.to = to;
+            this.dist = dist;
         }
     }
 
-    static class Link{
-        int id;
-        int s, e;
-        int cost;
+    // start 컴퓨터 -> to 컴퓨터까지 가는 경로 (사용되는 링크들)
+    static class PathInfo {
+        int to;
+        int[] edgeIds;
 
-        Link(int id, int s, int e, int cost){
-            this.id = id;
-            this.s = s;
-            this.e = e;
-            this.cost = cost;
+        PathInfo(int to, int[] edgeIds) {
+            this.to = to;
+            this.edgeIds = edgeIds;
         }
     }
 
-    static class Download implements Comparable<Download> {
-        List<Set<Link>> routes;
+    // 진행 중 다운로드 작업
+    static class Job {
+        int com;
         int fileId;
-        int time;
-        int cost;
+        long downloaded; // 현재 시각까지 다운로드된 양
+        int routeCnt;    // 현재 활성 경로 수
 
-        Download(List<Set<Link>> routes, int fileId, int time, int cost){
-            this.routes = routes;
+        Job(int com, int fileId) {
+            this.com = com;
             this.fileId = fileId;
-            this.time = time;
-            this.cost = cost;
-        }
-
-        @Override
-        public int compareTo(Download o){
-            return Integer.compare(this.time, o.time);
+            this.downloaded = 0L;
+            this.routeCnt = 0;
         }
     }
 
-    static Set<Integer>[] hasMap;
-    static List<Link>[] graph;
-    static Queue<Download>[] downloads;
-    static Queue<int[]>[] removes; // 0: id, 1: time
-    static Map<Integer, File> fileMap;
-    static Map<Integer, Link> linkMap;
-    static int n;
+    int n;
+    int currentTime;
+
+    List<Edge>[] graph;
+    List<PathInfo>[] nearPaths; // 각 컴퓨터에서 거리 ≤5로 갈 수 있는 모든 컴퓨터 경로
+
+    Map<Integer, Integer> fileSizeMap; // fileId -> size
+    Set<Integer>[] hasFile;            // 완료된 파일 보유 상태
+    Map<Integer, Job>[] activeByCom;   // 컴퓨터별 진행중 다운로드
+    List<Job> activeJobs;              // 전체 진행중 다운로드 목록
+
+    boolean[] aliveLink;
+
+    static final int MAX_LINK_ID = 50000;
 
     void init(int N, int mFileCnt[], int mFileID[][], int mFileSize[][]) {
-        graph = new List[N+1];
-        hasMap = new Set[N+1];
-        fileMap = new HashMap<>();
-        linkMap = new HashMap<>();
-        downloads = new Queue[N+1];
-        removes = new Queue[N+1];
-        n = N;
 
-        for (int i = 1; i < N+1; i++) {
+        n = N;
+        currentTime = 0;
+
+        graph = new ArrayList[n + 1];
+        nearPaths = new ArrayList[n + 1];
+        hasFile = new HashSet[n + 1];
+        activeByCom = new HashMap[n + 1];
+        activeJobs = new ArrayList<>();
+        fileSizeMap = new HashMap<>();
+        aliveLink = new boolean[MAX_LINK_ID + 1];
+
+        for (int i = 1; i <= n; i++) {
             graph[i] = new ArrayList<>();
-            hasMap[i] = new HashSet<>();
-            downloads[i] = new ArrayDeque<>();
-            removes[i] = new ArrayDeque<>();
+            nearPaths[i] = new ArrayList<>();
+            hasFile[i] = new HashSet<>();
+            activeByCom[i] = new HashMap<>();
         }
 
+        // 초기 파일 정보 저장
         for (int i = 0; i < N; i++) {
             for (int j = 0; j < mFileCnt[i]; j++) {
-                if(!fileMap.containsKey(mFileID[i][j]))
-                    fileMap.put(mFileID[i][j], new File(mFileID[i][j], mFileSize[i][j]));
-                hasMap[i].add(mFileID[i][j]);
+                int fid = mFileID[i][j];
+                int fsize = mFileSize[i][j];
+
+                fileSizeMap.put(fid, fsize);
+                hasFile[i + 1].add(fid); // 컴퓨터 번호는 1부터
             }
         }
     }
 
     void makeNet(int K, int mID[], int mComA[], int mComB[], int mDis[]) {
+
+        // 그래프 구성
         for (int i = 0; i < K; i++) {
-            linkMap.put(mID[i], new Link(mID[i], mComA[i], mComB[i], mDis[i]));
-            graph[mComA[i]].add(new Link(mID[i], 0, mComB[i], mDis[i]));
-            graph[mComB[i]].add(new Link(mID[i], 0, mComA[i], mDis[i]));
+
+            int id = mID[i];
+            int a = mComA[i];
+            int b = mComB[i];
+            int d = mDis[i];
+
+            graph[a].add(new Edge(id, b, d));
+            graph[b].add(new Edge(id, a, d));
+
+            aliveLink[id] = true;
         }
+
+        // 거리 ≤5 경로 전처리
+        precomputeNearPaths();
     }
 
     void removeLink(int mTime, int mID) {
-        Link removed = linkMap.get(mID);
 
-        while (!downloads[removed.s].isEmpty()){
-            Download now = downloads[removed.s].poll();
+        // 먼저 시간 진행
+        advanceTime(mTime);
 
-            if (now.time < mTime) break;
-            // 이미 지난거 처리
-            if (now.time + now.cost <= mTime){
-                hasMap[removed.s].add(now.fileId);
-            } else {
-                int origin = now.routes.size();
-
-                for (Set<Link> route : now.routes){
-                    if(route.contains(linkMap.get(mID))){
-                        now.routes.remove(route);
-                    }
-                }
-
-                if (!now.routes.isEmpty()){
-                    now.cost = (int) Math.ceil((double) (fileMap.get(now.fileId).size - (mTime - now.time) * 9) / now.routes.size());
-                }
-            }
-
-        }
-
-        linkMap.remove(removed.id);
+        // 링크 비활성화
+        aliveLink[mID] = false;
     }
 
     int downloadFile(int mTime, int mComA, int mFileID) {
-        List<Set<Link>> routes = new ArrayList<>();
-        dfs(routes, new HashSet<>(), mComA, 0, mFileID);
-        if (!routes.isEmpty()) {
-            int cost = (int) Math.ceil((double) fileMap.get(mFileID).size / (routes.size() * 9));
-            downloads[mComA].add(new Download(routes, mFileID, mTime, cost));
-        }
-        return routes.size();
-    }
 
-    void dfs(List<Set<Link>> routes, Set<Link> route, int com, int distance, int fileId){
-        if (distance > 5) return;
-        if (hasMap[com].contains(fileId)){
-            routes.add(route);
-            return;
-        }
+        advanceTime(mTime);
 
-        for (Link next : graph[com]){
-            if (distance + next.cost <= 5 && linkMap.containsKey(next.id)){
-                route.add(linkMap.get(next.id));
-                dfs(routes, route, next.e, distance+ next.cost, fileId);
-                route.remove(linkMap.get(next.id));
-            }
-        }
+        // 네트워크에 파일 없음
+        if (!fileSizeMap.containsKey(mFileID))
+            return 0;
+
+        int routes = countAvailableSources(mComA, mFileID);
+
+        if (routes == 0)
+            return 0;
+
+        // 다운로드 작업 생성
+        Job job = new Job(mComA, mFileID);
+        job.routeCnt = routes;
+
+        activeJobs.add(job);
+        activeByCom[mComA].put(mFileID, job);
+
+        return routes;
     }
 
     int getFileSize(int mTime, int mComA, int mFileID) {
-        Queue<Download> downloads1 = downloads[mComA];
-        Queue<int[]> removes1 = removes[mComA];
-        int[] nowCut = removes1.peek();
-        while (!downloads[mComA].isEmpty()){
-            Download now = downloads1.poll();
 
+        advanceTime(mTime);
+
+        // 이미 완료된 파일
+        if (hasFile[mComA].contains(mFileID)) {
+            return fileSizeMap.get(mFileID);
         }
+
+        Job job = activeByCom[mComA].get(mFileID);
+
+        if (job != null) {
+            long full = fileSizeMap.get(mFileID);
+            return (int) Math.min(full, job.downloaded);
+        }
+
         return 0;
+    }
+
+    // 시간 진행 처리
+    void advanceTime(int targetTime) {
+
+        if (currentTime >= targetTime)
+            return;
+
+        while (currentTime < targetTime) {
+
+            // 현재 시점에서 모든 다운로드의 경로 수 재계산
+            recomputeAllRouteCounts();
+
+            int nextFinishTime = Integer.MAX_VALUE;
+
+            // 가장 먼저 끝나는 다운로드 찾기
+            for (Job job : activeJobs) {
+
+                if (job.routeCnt == 0)
+                    continue;
+
+                long fileSize = fileSizeMap.get(job.fileId);
+                long remain = fileSize - job.downloaded;
+
+                if (remain <= 0) {
+                    nextFinishTime = currentTime;
+                    continue;
+                }
+
+                long speed = 9L * job.routeCnt;
+                long need = (remain + speed - 1) / speed;
+                long finishTime = currentTime + need;
+
+                if (finishTime < nextFinishTime)
+                    nextFinishTime = (int) finishTime;
+            }
+
+            // 다음 완료가 target 이후라면 바로 진행
+            if (nextFinishTime > targetTime || nextFinishTime == Integer.MAX_VALUE) {
+
+                int delta = targetTime - currentTime;
+                progressAll(delta);
+                currentTime = targetTime;
+                break;
+            }
+
+            // 완료 시점까지 진행
+            int delta = nextFinishTime - currentTime;
+
+            if (delta > 0) {
+                progressAll(delta);
+                currentTime = nextFinishTime;
+            }
+
+            // 완료된 작업 처리
+            finishCompletedJobs();
+        }
+    }
+
+    // 모든 다운로드 진행
+    void progressAll(int delta) {
+
+        if (delta <= 0)
+            return;
+
+        for (Job job : activeJobs) {
+
+            if (job.routeCnt == 0)
+                continue;
+
+            job.downloaded += 9L * job.routeCnt * delta;
+        }
+    }
+
+    // 다운로드 완료 처리
+    void finishCompletedJobs() {
+
+        List<Job> remain = new ArrayList<>(activeJobs.size());
+
+        for (Job job : activeJobs) {
+
+            long fullSize = fileSizeMap.get(job.fileId);
+
+            if (job.downloaded >= fullSize) {
+
+                // 파일 획득
+                hasFile[job.com].add(job.fileId);
+                activeByCom[job.com].remove(job.fileId);
+
+            } else {
+
+                remain.add(job);
+            }
+        }
+
+        activeJobs = remain;
+    }
+
+    // 현재 시점에서 가능한 다운로드 source 계산
+    int countAvailableSources(int from, int fileId) {
+
+        int cnt = 0;
+
+        for (PathInfo p : nearPaths[from]) {
+
+            int to = p.to;
+
+            if (!hasFile[to].contains(fileId))
+                continue;
+
+            if (!isPathAlive(p.edgeIds))
+                continue;
+
+            cnt++;
+        }
+
+        return cnt;
+    }
+
+    // 경로에 포함된 링크가 모두 살아있는지 확인
+    boolean isPathAlive(int[] edgeIds) {
+
+        for (int id : edgeIds) {
+            if (!aliveLink[id])
+                return false;
+        }
+
+        return true;
+    }
+
+    // 거리 ≤5 경로 전처리
+    void precomputeNearPaths() {
+
+        for (int start = 1; start <= n; start++) {
+
+            int[] path = new int[5];
+
+            dfsNear(start, start, 0, 0, path, 0);
+        }
+    }
+
+    void dfsNear(int start, int now, int parent, int distSum, int[] path, int edgeCnt) {
+
+        if (now != start) {
+            nearPaths[start].add(new PathInfo(now, Arrays.copyOf(path, edgeCnt)));
+        }
+
+        for (Edge next : graph[now]) {
+
+            if (next.to == parent)
+                continue;
+
+            if (distSum + next.dist > 5)
+                continue;
+
+            path[edgeCnt] = next.id;
+
+            dfsNear(start, next.to, now, distSum + next.dist, path, edgeCnt + 1);
+        }
+    }
+
+    void recomputeAllRouteCounts() {
+
+        for (Job job : activeJobs) {
+            job.routeCnt = countAvailableSources(job.com, job.fileId);
+        }
     }
 }
