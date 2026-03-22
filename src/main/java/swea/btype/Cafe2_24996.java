@@ -4,7 +4,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.util.*;
 
-class Solution
+class Cafe2_24996
 {
     private static final int CMD_INIT           = 100;
     private static final int CMD_ORDER	        = 200;
@@ -270,9 +270,9 @@ class UserSolution2
         return o.remain;
     }
 
-    public Solution.RESULT hurry()
+    public Cafe2_24996.RESULT hurry()
     {
-        Solution.RESULT res = new Solution.RESULT();
+        Cafe2_24996.RESULT res = new Cafe2_24996.RESULT();
         int k = 0;
 
         // 우선순위대로 최대 5개
