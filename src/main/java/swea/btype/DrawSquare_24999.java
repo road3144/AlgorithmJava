@@ -332,7 +332,7 @@ class DrawSquare_UserSolution3 {
         }
         sections.get(sidx).add(now);
 
-        // 마지막 열 아니고 아래로 넘어가면
+        // 마지막 행 아니고 아래로 넘어가면
         if (sr + 1 < m && mRow + mHeight > (sr + 1) * l) {
             for (Square sq : sections.get(sidx + m)) {
                 if (now.cross(sq.row, sq.row + sq.height-1, sq.col, sq.col + sq.width-1)){
@@ -342,7 +342,7 @@ class DrawSquare_UserSolution3 {
             sections.get(sidx + m).add(now);
         }
 
-        // 마지막 행 아니고 오른쪽 넘어가면
+        // 마지막 열 아니고 오른쪽 넘어가면
         if (sc + 1 < m && mCol + mWidth > (sc + 1) * l) {
             for (Square sq : sections.get(sidx + 1)) {
                 if (now.cross(sq.row, sq.row + sq.height-1, sq.col, sq.col + sq.width-1)){
