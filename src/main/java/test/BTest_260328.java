@@ -1,6 +1,6 @@
-package swea.btype;
+package test;
 
-public class Test_260328 {
+public class BTest_260328 {
 }
 /*
 * init 아무일도 안일어남
